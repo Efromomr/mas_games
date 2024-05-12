@@ -6,13 +6,13 @@ class StagHuntAgent:
 
   def get_answer(self, rounds, cur_round, agents, moves):
     if cur_round == 1:
-      return model.generate_content(base_stag_prompt.format(rounds = rounds, cur_round = cur_round, player_name = self.name) \
-                           + "As for now there are no previous moves." +  self.prompt_type).text
+      return model(base_stag_prompt.format(rounds = rounds, cur_round = cur_round, player_name = self.name) \
+                           + "As for now there are no previous moves." +  self.prompt_type)
     else:
-      return model.generate_content(base_stag_prompt.format(rounds = rounds,
+      return model(base_stag_prompt.format(rounds = rounds,
                                                             cur_round = cur_round, player_name = self.name) \
                            + stag_history_prompt.format(agent_1 = agents[0].name, \
-                                                   agent_2 = agents[1].name, moves_1 = moves[0], moves_2 = moves[1]) + self.prompt_type).text
+                                                   agent_2 = agents[1].name, moves_1 = moves[0], moves_2 = moves[1]) + self.prompt_type)
 
 class PublicGoodsAgent:
   def __init__(self, name, prompt_type = pg_zero_shot_prompt):
@@ -23,11 +23,11 @@ class PublicGoodsAgent:
 
   def get_answer(self, rounds, cur_round, agents, moves, multiplier):
     if cur_round == 1:
-      return model.generate_content(base_pg_prompt.format(rounds = rounds, 
+      return model(base_pg_prompt.format(rounds = rounds, 
                                                           multiplier = multiplier) \
-                           + "As for now there are no previous moves." +  self.prompt_type).text
+                           + "As for now there are no previous moves." +  self.prompt_type)
     else:
-      return model.generate_content(base_pg_prompt.format(rounds = rounds, 
+      return model(base_pg_prompt.format(rounds = rounds, 
                                                           cur_round = cur_round, 
                                                           player_name = self.name,
                                                           multiplier = multiplier) \
@@ -36,7 +36,7 @@ class PublicGoodsAgent:
                                                    agent_3 = agents[2].name,
                                                    moves_1 = moves[0], 
                                                    moves_2 = moves[1],
-                                                   moves_3 = moves[2]) + self.prompt_type).text
+                                                   moves_3 = moves[2]) + self.prompt_type)
 
 
 class HanabiAgent:
@@ -57,5 +57,5 @@ class HanabiAgent:
         revealed_cards = revealed_cards, deck_size = deck_size, 
         opponent_action = opponent_action, last_played = last_played, 
         available = available) + hanabi_action_prompt
-    ans = model.generate_content(prompt).text  
+    ans = model(prompt)  
     return ans
