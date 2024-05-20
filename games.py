@@ -7,18 +7,19 @@ class StagHuntGame:
     self.history_dict = {'winner': []}
     for agent in self.agents:
       self.history_dict[agent.name] = {'score': 0, 'moves': [], 'text_moves': []}
-    self.history_dict['agents'] = agents
+    self.history_dict['agents'] = [agent.name for agent in agents]
     self.history_dict['n_rounds'] = n_rounds
     self.payoff = {'deer': {'deer': 5, 'rabbit': 0}, 'rabbit': {'deer': 4, 'rabbit': 2}}
-    
+
 
   def step(self):
     self.cur_round += 1
     for agent in self.agents:
-      answer = agent.get_answer(self.n_rounds, self.cur_round, self.agents, [self.history_dict[a.name]['moves'][:self.cur_round] for a in self.agents])
+      answer = agent.get_answer(self.n_rounds, self.cur_round, self.agents,
+       [self.history_dict[a.name]['moves'][:self.cur_round-1] for a in self.agents])
       self.history_dict[agent.name]['text_moves'].append(answer)
-      answer = re.sub(r'\*', '', answer)
-      answer = re.search(r'I choose .*[.,\n*]', answer)
+      answer = re.sub(r'[^\w \n]', '', answer)
+      answer = re.search(r'Answer I choose \w+', answer)
 
       self.history_dict[agent.name]['moves'].append(answer.group(0).strip().split()[-1])
 
@@ -34,7 +35,7 @@ class StagHuntGame:
       self.step()
     if self.history_dict[self.agents[0].name]['score'] > self.history_dict[self.agents[1].name]['score']:
       self.history_dict['winner'].append(self.agents[0].name)
-    elif self.history_dict[self.agents[1].name]['score'] < self.history_dict[self.agents[0].name]['score']:
+    elif self.history_dict[self.agents[1].name]['score'] > self.history_dict[self.agents[0].name]['score']:
       self.history_dict['winner'].append(self.agents[1].name)
     else:
       self.history_dict['winner'] = [self.agents[0].name, self.agents[1].name]
@@ -51,33 +52,40 @@ class PublicGoodsGame:
     self.cur_round = 0
     self.agents = agents
     self.multiplier = 5
+    self.current_sum = 0
     self.history_dict = {'winner': []}
     for agent in self.agents:
       self.history_dict[agent.name] = {'score': 0, 'moves': [], 'text_moves': []}
-    self.history_dict['agents'] = agents
+    self.history_dict['agents'] = [agent.name for agent in agents]
     self.history_dict['n_rounds'] = n_rounds
 
   def step(self):
     self.cur_round += 1
-    self.current_sum = 0
+
     for agent in self.agents:
-      ans = agent.get_answer(self.n_rounds, self.cur_round, self.agents, 
-       [self.history_dict[a.name]['moves'][:self.cur_round] for a in self.agents], self.multiplier)
-      self.history_dict[agent.name]['text_moves'].append(ans)
-      ans = re.sub(r'[^\w ]', '', ans.lower())
-      ans = int(re.search(r'i contribute \d*', ans).group(0).strip().split()[-1])
-      self.history_dict[agent.name]['moves'].append(ans)
-      self.current_sum+=int(ans)
-      agent.money -= int(ans)
-    self.current_sum*=self.multiplier
-    for num, agent in enumerate(self.agents):
-      self.agents[num].money += self.current_sum // len(self.agents)
-    
+      ans_final = None
+
+      while ans_final is None:
+        ans_initial = agent.get_answer(self.n_rounds, self.cur_round, [a.name for a in self.agents],
+        [self.history_dict[a.name]['moves'][:self.cur_round-1] for a in self.agents], self.multiplier)
+        ans_final = re.sub(r'[^\w ]', '', ans_initial.lower())
+        ans_final = re.search(r'i contribute \d+', ans_final)
+
+      num = int(ans_final.group(0).strip().split()[-1])
+      self.history_dict[agent.name]['moves'].append(num)
+      self.history_dict[agent.name]['text_moves'].append(ans_initial)
+      self.current_sum+=num
+      agent.money -= num
+
 
   def play(self, save_to_json = False):
     global games
     while self.cur_round < self.n_rounds:
       self.step()
+
+    self.current_sum*=self.multiplier
+    for num, agent in enumerate(self.agents):
+      self.agents[num].money += self.current_sum // len(self.agents)
     m = 0
     for agent in self.agents:
       self.history_dict[agent.name]['score'] = agent.money
@@ -91,7 +99,7 @@ class PublicGoodsGame:
         json.dump(self.history_dict, f)
     games.append(self.history_dict)
     return self.history_dict
-    
+
 class HanabiGame:
   def __init__(self, agents, cards_in_hand = 5, colors = ['white', 'yellow', 'green', 'blue', 'red']):
     self.deck = []
@@ -102,8 +110,11 @@ class HanabiGame:
     self.fireworks_colors = set()
     self.cards_in_hand = cards_in_hand
     self.colors = colors
-    self.history_dict['agents'] = agents
+    self.history_dict = {}
+    self.history_dict['agents'] = [agent.name for agent in agents]
     self.history_dict['n_rounds'] = None
+    for agent in self.agents:
+      self.history_dict[agent.name] = {'cards': [], 'moves': [], 'text_moves': []}
 
 
   def init_deck(self):
@@ -116,7 +127,7 @@ class HanabiGame:
     for num, agent in enumerate(self.agents):
       for i in range(self.cards_in_hand):
         self.agents[num].cards.append(self.deck.pop())
-        self.agents[num].revealed_cards.append([None, None])   
+        self.agents[num].revealed_cards.append([None, None])
 
   def step(self, agent, other_agent):
 
@@ -131,21 +142,23 @@ class HanabiGame:
           available.add(f'reveal all {card[1]}')
     available = list(available)
 
-    answer = None
-    while answer is None:
-          
-      answer = agent.get_answer(other_agent.cards, self.fireworks, agent.mistakes_left,
-                                agent.hints_left, agent.revealed_cards, 
+    ans_final = None
+    while ans_final is None:
+
+      ans_initial = agent.get_answer(other_agent.cards, self.fireworks, agent.mistakes_left,
+                                agent.hints_left, agent.revealed_cards,
                                 len(self.deck), self.last_action, self.last_played,
                                 available)
-      answer = re.sub(r'\*', '', answer)
-      answer = re.search(r'Action: .*[.,\n*]', answer)
+      ans_final = re.sub(r'\*', '', ans_initial)
+      ans_final = re.search(r'Action: .*[.,\n*]', ans_final)
 
-    action = answer.group(0).strip().split()[1]
-    move = answer.group(0).strip().split()[3]
-    
+    self.history_dict[agent.name]['text_moves'].append(ans_initial)
+    self.history_dict[agent.name]['moves'].append(ans_final)
+    action = ans_final.group(0).strip().split()[1]
+    move = ans_final.group(0).strip().split()[3]
 
-    self.last_action = answer
+
+    self.last_action = ans_initial
 
     if action.lower() == 'discard':
       card_idx = int(move) - 1
@@ -173,11 +186,11 @@ class HanabiGame:
         agent.mistakes_left -= 1
         if agent.mistakes_left == 0:
           return 'lose'
-      
+
       if self.deck:
         agent.cards[card_idx] = self.deck.pop()
       agent.revealed_cards[card_idx] = [None, None]
-      
+
     elif action.lower() == 'reveal':
       idx = 0
       if move.isdigit():
@@ -186,7 +199,9 @@ class HanabiGame:
         if card[idx] == move:
           other_agent.revealed_cards[num][idx] = move
       agent.hints_left -= 1
-    
+
+    self.history_dict[agent.name]['cards'].append(agent.cards)
+
     return 'ok'
 
   def play(self, save_to_json = False):
