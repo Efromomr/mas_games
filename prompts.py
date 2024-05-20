@@ -9,21 +9,32 @@ Your goal is to maximize your personal score."""
 
 stag_history_prompt = "The previous moves are {agent_1}: {moves_1}, {agent_2}: {moves_2}"
 
-stag_zero_shot_prompt = 'Make a best move based on your predictions. Your prediction should be based on previous steps. You must answer with the template "I choose x" where x is either deer or rabbit'
+stag_zero_shot_prompt = 'Make a best move based on your predictions. Your prediction should be based on previous steps. You must answer with the template "Answer: I choose x" where x is either deer or rabbit'
 
 stag_cot_prompt = stag_zero_shot_prompt + "Let's think step by step"
 
 stag_predict_prompt =  stag_zero_shot_prompt + "First, calculate all possible outcomes and try to predict another player's move."
 
+stag_pgm_prompt = stag_zero_shot_prompt + """First, try to analyze how other
+players will choose to defect or corporate in next round from you own
+perspective and others' perspective.
+You must use the template:
+In my opinion:
+As {player_name},
+I think {oth_player1} will xx, because...
+As for other players,
+I think {oth_player1} thinks:
+{player_name} will..."""
+
 base_pg_prompt = """Welcome to the 'Public Good' game. Here is the game setting and rules.
 
 - Each of you starts with 100 monetary points. In each of the {rounds} rounds,
-you will publicly decide how much to contribute to a communal pool. Contributions are 
+you will publicly decide how much to contribute to a communal pool. Contributions are
 public and known to all players after each round.
-- At the end, the total contributions from all the players to this pool are times with 
+- At the end, the total contributions from all the players to this pool are times with
 {multiplier} and then evenly divided among all players.
 - The winner is determined at the end of the {rounds} rounds, and is the player
- whose total of remaining points and the points earned from the communal pool 
+ whose total of remaining points and the points earned from the communal pool
  is the highest.
  -You are {player_name}"""
 
@@ -35,6 +46,24 @@ pg_zero_shot_prompt = '''Based on your own analysis about others and other's tho
 You must answer with the template "I contribute xx". '''
 
 pg_cot_prompt = pg_zero_shot_prompt + "Let's think step by step."
+
+pg_false_cot = pg_zero_shot_prompt + "Let's first generate several tens of '...', then answer."
+
+pg_pgm_prompt = pg_zero_shot_prompt + '''Please try to analyze whether other player will "reduce" or "increase" their contributes in next round from you own perspective and others' perspective.
+- Remember, the payment in the communal pool is evenly shared by all players at the end of the game, so you need to make sure you invest the least of the money to get the highest repay.
+You must use the template:
+In my opinion:
+As {player_name},
+I think {oth_player1} will xx, because...
+I think {oth_player2} will xx, because...
+As for other players,
+I think {oth_player1} thinks:
+{player_name} will...
+{oth_player2} will...
+I think {oth_player2} thinks
+{player_name} will...
+{oth_player1} will...
+'''
 
 pg_predict_prompt =  pg_zero_shot_prompt + "First, try to predict moves of the other two players, then choose the optimal amount of money to contribute."
 
